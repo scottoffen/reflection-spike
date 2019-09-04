@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using FastMember;
 
 namespace ReflectionSpike
@@ -18,6 +19,7 @@ namespace ReflectionSpike
 
         static void Main(string[] args)
         {
+            Console.Title = RuntimeInformation.FrameworkDescription;
             RunAllTests();
             DumpTestResults();
 
@@ -26,6 +28,15 @@ namespace ReflectionSpike
 
         public static void RunAllTests()
         {
+            //Warmup
+            Baseline(false);
+            ReflectEveryTime(false);
+            CachePropertyInfo(false);
+            CreateStrongDelegate(false);
+            UsingFastMember(false);
+            UsingMagicMethod(false);
+
+            //Run measured tests
             Baseline();
             ReflectEveryTime();
             CachePropertyInfo();
@@ -34,7 +45,7 @@ namespace ReflectionSpike
             UsingMagicMethod();
         }
 
-        public static void Baseline()
+        public static void Baseline(bool reportResults = true)
         {
             if (_vtype == VariableType.String)
             {
@@ -43,6 +54,7 @@ namespace ReflectionSpike
                 {
                     var x = _test.Name;
                 }
+                _watch.Stop();
             }
             else
             {
@@ -51,12 +63,13 @@ namespace ReflectionSpike
                 {
                     var x = _test.Duration;
                 }
+                _watch.Stop();
             }
-
-            _results.Add("Baseline (Direct Access)", _elapsedTimeIn == ElapsedTimeIn.Ticks ? _watch.ElapsedTicks : _watch.ElapsedMilliseconds);
+            if(reportResults)
+                _results.Add("Baseline (Direct Access)", _elapsedTimeIn == ElapsedTimeIn.Ticks ? _watch.ElapsedTicks : _watch.ElapsedMilliseconds);
         }
 
-        public static void ReflectEveryTime()
+        public static void ReflectEveryTime(bool reportResults = true)
         {
             var propName = _vtype == VariableType.String ? "Name" : "Duration";
 
@@ -67,10 +80,12 @@ namespace ReflectionSpike
                 propInfo.GetValue(_test);
             }
 
-            _results.Add("Reflect Every Time", _elapsedTimeIn == ElapsedTimeIn.Ticks ? _watch.ElapsedTicks : _watch.ElapsedMilliseconds);
+            _watch.Stop();
+            if(reportResults)
+                _results.Add("Reflect Every Time", _elapsedTimeIn == ElapsedTimeIn.Ticks ? _watch.ElapsedTicks : _watch.ElapsedMilliseconds);
         }
 
-        public static void CachePropertyInfo()
+        public static void CachePropertyInfo(bool reportResults = true)
         {
             var propName = _vtype == VariableType.String ? "Name" : "Duration";
             var propInfo = typeof(TestClass).GetProperty(propName);
@@ -81,10 +96,12 @@ namespace ReflectionSpike
                 propInfo.GetValue(_test);
             }
 
-            _results.Add("Cache PropertyInfo", _elapsedTimeIn == ElapsedTimeIn.Ticks ? _watch.ElapsedTicks : _watch.ElapsedMilliseconds);
+            _watch.Stop();
+            if(reportResults)
+                _results.Add("Cache PropertyInfo", _elapsedTimeIn == ElapsedTimeIn.Ticks ? _watch.ElapsedTicks : _watch.ElapsedMilliseconds);
         }
 
-        public static void CreateStrongDelegate()
+        public static void CreateStrongDelegate(bool reportResults = true)
         {
             if (_vtype == VariableType.String)
             {
@@ -96,6 +113,7 @@ namespace ReflectionSpike
                 {
                     func(_test);
                 }
+                _watch.Stop();
             }
             else
             {
@@ -107,12 +125,14 @@ namespace ReflectionSpike
                 {
                     func(_test);
                 }
+                _watch.Stop();
             }
 
-            _results.Add("Create Strong Delegate", _elapsedTimeIn == ElapsedTimeIn.Ticks ? _watch.ElapsedTicks : _watch.ElapsedMilliseconds);
+            if(reportResults)
+                _results.Add("Create Strong Delegate", _elapsedTimeIn == ElapsedTimeIn.Ticks ? _watch.ElapsedTicks : _watch.ElapsedMilliseconds);
         }
 
-        public static void UsingFastMember()
+        public static void UsingFastMember(bool reportResults = true)
         {
             var accessor = TypeAccessor.Create(typeof(TestClass));
             var propName = _vtype == VariableType.String ? "Name" : "Duration";
@@ -123,10 +143,12 @@ namespace ReflectionSpike
                 var x = accessor[_test, propName];
             }
 
-            _results.Add("Using FastMember Library", _elapsedTimeIn == ElapsedTimeIn.Ticks ? _watch.ElapsedTicks : _watch.ElapsedMilliseconds);
+            _watch.Stop();
+            if(reportResults)
+                _results.Add("Using FastMember Library", _elapsedTimeIn == ElapsedTimeIn.Ticks ? _watch.ElapsedTicks : _watch.ElapsedMilliseconds);
         }
 
-        public static void UsingMagicMethod()
+        public static void UsingMagicMethod(bool reportResults = true)
         {
             var propInfo = typeof(TestClass).GetProperty(_vtype == VariableType.String ? "Name" : "Duration");
             var method = MagicMethodMaker.MakeMagicMethod<TestClass>(propInfo.GetGetMethod());
@@ -137,7 +159,10 @@ namespace ReflectionSpike
                 method(_test);
             }
 
-            _results.Add("Using MagicMethod Pattern", _elapsedTimeIn == ElapsedTimeIn.Ticks ? _watch.ElapsedTicks : _watch.ElapsedMilliseconds);
+            _watch.Stop();
+
+            if(reportResults)
+                _results.Add("Using MagicMethod Pattern", _elapsedTimeIn == ElapsedTimeIn.Ticks ? _watch.ElapsedTicks : _watch.ElapsedMilliseconds);
         }
 
         public static void DumpTestResults()
