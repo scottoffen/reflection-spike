@@ -9,162 +9,242 @@ namespace ReflectionSpike
 {
     public static class Program
     {
-        private static Stopwatch _watch;
-        private static TestClass _test = new TestClass { Name = "Bob", Duration = 10 };
-        private static int _iterations = 10000;
-        private static Dictionary<string, long> _results = new Dictionary<string, long>();
-        private static VariableType _vtype = VariableType.String;
-        private static ElapsedTimeIn _elapsedTimeIn = ElapsedTimeIn.Ticks;
+        private static Stopwatch _stopWatch;
+        private static TestClass _testClass = new TestClass();
 
-        static void Main(string[] args)
+        public static void Main(string[] args)
         {
-            RunAllTests();
-            DumpTestResults();
+            var dunits = DurationUnits.Milliseconds;
+
+            RunPropertyAccessorTests(ValueType.Integer, dunits);
+            RunPropertyAccessorTests(ValueType.String, dunits);
+
+            // RunDictionaryCreationTests(dunits);
 
             Console.ReadLine();
         }
 
-        public static void RunAllTests()
+        private static void RunPropertyAccessorTests(ValueType vtype = ValueType.String, DurationUnits dunits = DurationUnits.Ticks)
         {
-            Baseline();
-            ReflectEveryTime();
-            CachePropertyInfo();
-            CreateStrongDelegate();
-            UsingFastMember();
-            UsingMagicMethod();
+            var testparams = new TestParameters { TestValueType = vtype, DurationUnits = dunits };
+            var results = new TestResults { TestParameters = testparams };
+
+            GetValueUsingReflection(results);
+            GetValueUsingDirectAccess(results);
+            GetValueUsingCachedPropertyInfo(results);
+            GetValueUsingMagicMethod(results);
+            GetValueUsingFastMember(results);
+
+            TestResults.Display(results, $"Property Accessors for {vtype}");
         }
 
-        public static void Baseline()
+        private static void RunDictionaryCreationTests(DurationUnits dunits = DurationUnits.Ticks)
         {
-            if (_vtype == VariableType.String)
+            var testparams = new TestParameters { Iterations = 50000, DurationUnits = dunits };
+            var results = new TestResults { TestParameters = testparams };
+
+            CreateDictionaryUsingReflection(results);
+            CreateDictionaryUsingLinq(results);
+            CreateDictionaryUsingCachedPropertyInfo(results);
+            CreateDictionaryUsingDirectAccess(results);
+            CreateDictionaryUsingMagicMethod(results);
+            CreateDictionaryUsingGenericStatic(results);
+
+            TestResults.Display(results, "Dictionary Creation");
+        }
+
+        private static void GetValueUsingCachedPropertyInfo(TestResults results)
+        {
+            var testName = "Get Property Value Using Cached PropertyInfo";
+            var propName = results.TestParameters.TestValueType == ValueType.String
+                ? "Name"
+                : "Duration";
+            var prop = _testClass.GetType().GetProperty(propName);
+
+            _stopWatch = Stopwatch.StartNew();
+            for (var i = 0; i < results.TestParameters.Iterations; i++)
             {
-                _watch = Stopwatch.StartNew();
-                for (var i = 0; i < _iterations; i++)
+                var x = prop.GetValue(_testClass);
+            }
+            _stopWatch.Stop();
+
+            results.AddResult(testName, _stopWatch);
+        }
+
+        private static void GetValueUsingDirectAccess(TestResults results)
+        {
+            var testName = "Get Property Value Using Direct Access";
+
+            if (results.TestParameters.TestValueType == ValueType.String)
+            {
+                _stopWatch = Stopwatch.StartNew();
+                for (var i = 0; i < results.TestParameters.Iterations; i++)
                 {
-                    var x = _test.Name;
+                    var x = _testClass.Name;
                 }
+                _stopWatch.Stop();
             }
-            else
+            else if (results.TestParameters.TestValueType == ValueType.String)
             {
-                _watch = Stopwatch.StartNew();
-                for (var i = 0; i < _iterations; i++)
+                _stopWatch = Stopwatch.StartNew();
+                for (var i = 0; i < results.TestParameters.Iterations; i++)
                 {
-                    var x = _test.Duration;
+                    var x = _testClass.Duration;
                 }
+                _stopWatch.Stop();
             }
 
-            _results.Add("Baseline (Direct Access)", _elapsedTimeIn == ElapsedTimeIn.Ticks ? _watch.ElapsedTicks : _watch.ElapsedMilliseconds);
+            results.AddResult(testName, _stopWatch);
         }
 
-        public static void ReflectEveryTime()
+        private static void GetValueUsingReflection(TestResults results)
         {
-            var propName = _vtype == VariableType.String ? "Name" : "Duration";
+            var testName = "Get Property Value Using Reflection";
+            var propName = results.TestParameters.TestValueType == ValueType.String
+                ? "Name"
+                : "Duration";
 
-            _watch = Stopwatch.StartNew();
-            for (var i = 0; i < _iterations; i++)
+            _stopWatch = Stopwatch.StartNew();
+            for (var i = 0; i < results.TestParameters.Iterations; i++)
             {
-                var propInfo = typeof(TestClass).GetProperty(propName);
-                propInfo.GetValue(_test);
-            }
+                var prop = _testClass.GetType().GetProperty(propName);
+                var x = prop.GetValue(_testClass);
 
-            _results.Add("Reflect Every Time", _elapsedTimeIn == ElapsedTimeIn.Ticks ? _watch.ElapsedTicks : _watch.ElapsedMilliseconds);
+            }
+            _stopWatch.Stop();
+
+            results.AddResult(testName, _stopWatch);
         }
 
-        public static void CachePropertyInfo()
+        private static void GetValueUsingMagicMethod(TestResults results)
         {
-            var propName = _vtype == VariableType.String ? "Name" : "Duration";
-            var propInfo = typeof(TestClass).GetProperty(propName);
+            var testName = "Get Property Value Using MagicMethod";
+            var propName = results.TestParameters.TestValueType == ValueType.String
+                ? "Name"
+                : "Duration";
+            var method = MagicMethodMaker.MakeMagicMethod<TestClass>(_testClass.GetType().GetProperty(propName).GetGetMethod());
 
-            _watch = Stopwatch.StartNew();
-            for (var i = 0; i < _iterations; i++)
+            _stopWatch = Stopwatch.StartNew();
+            for (var i = 0; i < results.TestParameters.Iterations; i++)
             {
-                propInfo.GetValue(_test);
+                var x = method(_testClass);
             }
+            _stopWatch.Stop();
 
-            _results.Add("Cache PropertyInfo", _elapsedTimeIn == ElapsedTimeIn.Ticks ? _watch.ElapsedTicks : _watch.ElapsedMilliseconds);
+            results.AddResult(testName, _stopWatch);
         }
 
-        public static void CreateStrongDelegate()
+        private static void GetValueUsingFastMember(TestResults results)
         {
-            if (_vtype == VariableType.String)
-            {
-                var propInfo = typeof(TestClass).GetProperty("Name");
-                Func<TestClass, string> func = (Func<TestClass, string>)Delegate.CreateDelegate(typeof(Func<TestClass, string>), null, propInfo.GetGetMethod());
-
-                _watch = Stopwatch.StartNew();
-                for (var i = 0; i < _iterations; i++)
-                {
-                    func(_test);
-                }
-            }
-            else
-            {
-                var propInfo = typeof(TestClass).GetProperty("Duration");
-                Func<TestClass, int> func = (Func<TestClass, int>)Delegate.CreateDelegate(typeof(Func<TestClass, int>), null, propInfo.GetGetMethod());
-
-                _watch = Stopwatch.StartNew();
-                for (var i = 0; i < _iterations; i++)
-                {
-                    func(_test);
-                }
-            }
-
-            _results.Add("Create Strong Delegate", _elapsedTimeIn == ElapsedTimeIn.Ticks ? _watch.ElapsedTicks : _watch.ElapsedMilliseconds);
-        }
-
-        public static void UsingFastMember()
-        {
+            var testName = "Get Property Value Using FastMember";
             var accessor = TypeAccessor.Create(typeof(TestClass));
-            var propName = _vtype == VariableType.String ? "Name" : "Duration";
+            var propName = results.TestParameters.TestValueType == ValueType.String
+                ? "Name"
+                : "Duration";
 
-            _watch = Stopwatch.StartNew();
-            for (var i = 0; i < _iterations; i++)
+            _stopWatch = Stopwatch.StartNew();
+            for (var i = 0; i < results.TestParameters.Iterations; i++)
             {
-                var x = accessor[_test, propName];
+                var x = accessor[_testClass, propName];
             }
+            _stopWatch.Stop();
 
-            _results.Add("Using FastMember Library", _elapsedTimeIn == ElapsedTimeIn.Ticks ? _watch.ElapsedTicks : _watch.ElapsedMilliseconds);
+            results.AddResult(testName, _stopWatch);
         }
 
-        public static void UsingMagicMethod()
+        private static void CreateDictionaryUsingDirectAccess(TestResults results)
         {
-            var propInfo = typeof(TestClass).GetProperty(_vtype == VariableType.String ? "Name" : "Duration");
-            var method = MagicMethodMaker.MakeMagicMethod<TestClass>(propInfo.GetGetMethod());
+            var testName = "Create Dictionary Using Direct Access";
 
-            _watch = Stopwatch.StartNew();
-            for (var i = 0; i < _iterations; i++)
+            _stopWatch = Stopwatch.StartNew();
+            for (var i = 0; i < results.TestParameters.Iterations; i++)
             {
-                method(_test);
+                var dictionary = new Dictionary<string, object>();
+                dictionary.Add("Name", _testClass.Name);
+                dictionary.Add("Duration", _testClass.Duration);
+                dictionary.Add("IsTrue", _testClass.IsTrue);
+                dictionary.Add("LastHappened", _testClass.LastHappened);
+                dictionary.Add("MyData", _testClass.MyData);
             }
+            _stopWatch.Stop();
 
-            _results.Add("Using MagicMethod Pattern", _elapsedTimeIn == ElapsedTimeIn.Ticks ? _watch.ElapsedTicks : _watch.ElapsedMilliseconds);
+            results.AddResult(testName, _stopWatch);
         }
 
-        public static void DumpTestResults()
+        private static void CreateDictionaryUsingCachedPropertyInfo(TestResults results)
         {
-            var slowest = (int)_results.Values.Aggregate((long)0, (max, cur) => max > cur ? max : cur);
-            var fastest = (int)_results.Values.Aggregate((long)0, (max, cur) => max > cur ? cur : max);
+            var testName = "Create Dictionary Using Cached PropertyInfo";
+            PropertyInfoCache<TestClass>.Init();
 
-            var klen = _results.Keys.Aggregate("", (max, cur) => max.Length > cur.Length ? max : cur).Length;
-            var vlen = $"{slowest:N0}".Length;
-
-            Console.WriteLine();
-            Console.WriteLine($"\tUsing {_iterations:N0} iterations for each test.");
-
-            var results = _results.ToList();
-            results.Sort((p1, p2) => p2.Value.CompareTo(p1.Value));
-
-            var units = _elapsedTimeIn == ElapsedTimeIn.Milliseconds ? "ms" : "ticks";
-
-            foreach (var result in results)
+            _stopWatch = Stopwatch.StartNew();
+            for (var i = 0; i < results.TestParameters.Iterations; i++)
             {
-                var perf = slowest != result.Value ? $"~{Math.Ceiling(Decimal.Divide(slowest, result.Value))}x faster" : "";
+                var dictionary = PropertyInfoCache<TestClass>.ToDictionary(_testClass);
+            }
+            _stopWatch.Stop();
 
-                var number = $"{result.Value:N0}";
-                Console.WriteLine($"\t{result.Key.PadRight(klen)}: {number.PadLeft(vlen)} {units} {perf}");
+            results.AddResult(testName, _stopWatch);
+        }
+
+        private static void CreateDictionaryUsingLinq(TestResults results)
+        {
+            var testName = "Create Dictionary Using Linq";
+
+            _stopWatch = Stopwatch.StartNew();
+            for (var i = 0; i < results.TestParameters.Iterations; i++)
+            {
+                var dictionary = _testClass.AsDictionary();
+            }
+            _stopWatch.Stop();
+
+            results.AddResult(testName, _stopWatch);
+        }
+
+        private static void CreateDictionaryUsingReflection(TestResults results)
+        {
+            var testName = "Create Dictionary Using Reflection";
+
+            _stopWatch = Stopwatch.StartNew();
+            for (var i = 0; i < results.TestParameters.Iterations; i++)
+            {
+                var dictionary = new Dictionary<string, object>();
+                foreach (var property in _testClass.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public))
+                {
+                    dictionary.Add(property.Name, property.GetValue(_testClass));
+                }
+            }
+            _stopWatch.Stop();
+
+            results.AddResult(testName, _stopWatch);
+        }
+
+        private static void CreateDictionaryUsingMagicMethod(TestResults results)
+        {
+            var testName = "Create Dictionary Using MagicMethod";
+
+            var cache = new Dictionary<string, Func<TestClass, object>>();
+            foreach (var property in _testClass.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public))
+            {
+                cache.Add(property.Name, MagicMethodMaker.MakeMagicMethod<TestClass>(property.GetGetMethod()));
             }
 
-            _results.Clear();
+            _stopWatch = Stopwatch.StartNew();
+            for (var i = 0; i < results.TestParameters.Iterations; i++)
+            {
+                var dictionary = new Dictionary<string, object>();
+                foreach (var kvp in cache)
+                {
+                    dictionary.Add(kvp.Key, kvp.Value(_testClass));
+                }
+            }
+            _stopWatch.Stop();
+
+            results.AddResult(testName, _stopWatch);
+        }
+
+        private static void CreateDictionaryUsingGenericStatic(TestResults results)
+        {
+            // throw new NotImplementedException();
         }
     }
 }

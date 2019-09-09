@@ -4,13 +4,13 @@ using System.Text;
 
 namespace ReflectionSpike
 {
-    public enum VariableType
+    public enum ValueType
     {
         String,
         Integer
     }
 
-    public enum ElapsedTimeIn
+    public enum DurationUnits
     {
         Milliseconds,
         Ticks

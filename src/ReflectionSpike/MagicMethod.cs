@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 namespace ReflectionSpike
@@ -33,6 +35,15 @@ namespace ReflectionSpike
             // Now create a more weakly typed delegate which will call the strongly typed one
             Func<TTarget, object> ret = (TTarget target) => func(target);
             return ret;
+        }
+
+        public static IDictionary<string, object> AsDictionary(this object source, BindingFlags bindingAttr = BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.Instance)
+        {
+            return source.GetType().GetProperties(bindingAttr).ToDictionary
+            (
+                propInfo => propInfo.Name,
+                propInfo => propInfo.GetValue(source, null)
+            );
         }
     }
 }
