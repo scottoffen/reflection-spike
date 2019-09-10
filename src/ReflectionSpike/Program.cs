@@ -16,10 +16,12 @@ namespace ReflectionSpike
         {
             var dunits = DurationUnits.Milliseconds;
 
-            RunPropertyAccessorTests(ValueType.Integer, dunits);
-            RunPropertyAccessorTests(ValueType.String, dunits);
+            // RunPropertyAccessorTests(ValueType.Integer, dunits);
+            // RunPropertyAccessorTests(ValueType.String, dunits);
 
-            // RunDictionaryCreationTests(dunits);
+            RunDictionaryCreationTests(dunits);
+            RunDictionaryCreationTests(dunits);
+            RunDictionaryCreationTests(dunits);
 
             Console.ReadLine();
         }
@@ -244,7 +246,17 @@ namespace ReflectionSpike
 
         private static void CreateDictionaryUsingGenericStatic(TestResults results)
         {
-            // throw new NotImplementedException();
+            var testName = "Create Dictionary Using Generic Static";
+            Parakeet<TestClass>.Init();
+
+            _stopWatch = Stopwatch.StartNew();
+            for (var i = 0; i < results.TestParameters.Iterations; i++)
+            {
+                var dictionary = Parakeet<TestClass>.ToDictionary(_testClass);
+            }
+            _stopWatch.Stop();
+
+            results.AddResult(testName, _stopWatch);
         }
     }
 }
