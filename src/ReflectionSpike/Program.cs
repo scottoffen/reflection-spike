@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
 using FastMember;
 
 namespace ReflectionSpike
@@ -16,7 +15,7 @@ namespace ReflectionSpike
         private static VariableType _vtype = VariableType.String;
         private static ElapsedTimeIn _elapsedTimeIn = ElapsedTimeIn.Ticks;
 
-        static void Main(string[] args)
+        public static void Main(string[] args)
         {
             RunAllTests();
             DumpTestResults();
@@ -134,7 +133,7 @@ namespace ReflectionSpike
             _watch = Stopwatch.StartNew();
             for (var i = 0; i < _iterations; i++)
             {
-                method(_test);
+                var x = method(_test);
             }
 
             _results.Add("Using MagicMethod Pattern", _elapsedTimeIn == ElapsedTimeIn.Ticks ? _watch.ElapsedTicks : _watch.ElapsedMilliseconds);

@@ -10,15 +10,15 @@ namespace ReflectionSpike
      */
     public static class MagicMethodMaker
     {
+        // Fetch the generic form
+        private static readonly MethodInfo _genericHelper = typeof(MagicMethodMaker).GetMethod("MagicMethodHelper", BindingFlags.Static | BindingFlags.NonPublic);
+
         public static Func<T, object> MakeMagicMethod<T>(MethodInfo method) where T : class
         {
-            // First fetch the generic form
-            MethodInfo genericHelper = typeof(MagicMethodMaker).GetMethod("MagicMethodHelper", BindingFlags.Static | BindingFlags.NonPublic);
+            // Supply the type arguments
+            MethodInfo constructedHelper = _genericHelper.MakeGenericMethod(typeof(T), method.ReturnType);
 
-            // Now supply the type arguments
-            MethodInfo constructedHelper = genericHelper.MakeGenericMethod(typeof(T), method.ReturnType);
-
-            // Now call it. The null argument is because it's a static method.
+            // Call it. The null argument is because it's a static method.
             object ret = constructedHelper.Invoke(null, new object[] { method });
 
             // Cast the result to the right kind of delegate and return it
